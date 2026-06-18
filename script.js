@@ -86,7 +86,8 @@
   ----------------------------------------------------------- */
   function initScrollReveal() {
     var targets = qsa(
-      '.work-item, .timeline__entry, .achievement-entry, .about__para, .research__fact'
+      '.work-item, .work-minor, .timeline__entry, .achievement-entry, .about__para, ' +
+      '.research__fact, .focus-list__item, .philosophy__para, .code__row, .highlights-row__item'
     );
     if (!targets.length) return;
 
