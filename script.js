@@ -1,7 +1,8 @@
 /* ===================================================================
-   TANJIM MAHBUB — PORTFOLIO SCRIPT (v2)
+   TANJIM MAHBUB — PORTFOLIO SCRIPT (v3)
    Vanilla JS, no dependencies. Handles: scroll progress, masthead
-   state, mobile menu, scroll reveals, smooth scroll offset, footer year.
+   state, mobile menu, scroll reveals, smooth scroll offset, image
+   lightbox, active nav-state, image-load fallback, footer year.
    Deliberately minimal — no counters, no skill bars, no testimonial
    carousel. The brief asked for subtle motion only.
    =================================================================== */
@@ -142,6 +143,117 @@
   }
 
   /* -----------------------------------------------------------
+     IMAGE FALLBACK — if an asset hasn't been uploaded yet, show
+     a quiet placeholder instead of a broken-image glyph.
+  ----------------------------------------------------------- */
+  function initImageFallback() {
+    var imgs = qsa(
+      '.portrait-frame__img, .work-item__media img, .work-minor__media img, .achievement-entry__cert img'
+    );
+    imgs.forEach(function (img) {
+      img.addEventListener('error', function () {
+        var wrapper = img.closest('.portrait-frame, .work-item__media, .work-minor__media, .achievement-entry__cert');
+        if (!wrapper) return;
+        wrapper.classList.add('media-missing');
+        wrapper.setAttribute('data-missing-label', 'Image pending');
+        var trigger = wrapper.querySelector('.media-trigger');
+        if (trigger) trigger.setAttribute('data-missing', 'true');
+      });
+    });
+  }
+
+  /* -----------------------------------------------------------
+     LIGHTBOX — click a project/certificate image to enlarge it.
+     Lightweight, no dependencies, closes on ESC / backdrop /
+     close button, traps focus, restores focus on close.
+  ----------------------------------------------------------- */
+  function initLightbox() {
+    var lightbox = document.getElementById('lightbox');
+    var img = document.getElementById('lightboxImg');
+    var caption = document.getElementById('lightboxCaption');
+    var closeBtn = document.getElementById('lightboxClose');
+    var triggers = qsa('.media-trigger');
+    if (!lightbox || !img || !closeBtn || !triggers.length) return;
+
+    var lastFocused = null;
+
+    function open(src, alt, captionText) {
+      lastFocused = document.activeElement;
+      img.src = src;
+      img.alt = alt || '';
+      caption.textContent = captionText || '';
+      lightbox.classList.add('is-open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('lightbox-open');
+      closeBtn.focus();
+      document.addEventListener('keydown', onKeydown);
+    }
+
+    function close() {
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('lightbox-open');
+      document.removeEventListener('keydown', onKeydown);
+      img.src = '';
+      if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+      if (e.key === 'Tab') {
+        // Single focusable element inside the dialog — keep focus trapped on it.
+        e.preventDefault();
+        closeBtn.focus();
+      }
+    }
+
+    triggers.forEach(function (trigger) {
+      trigger.addEventListener('click', function () {
+        if (trigger.getAttribute('data-missing') === 'true') return;
+        var src = trigger.getAttribute('data-lightbox-src');
+        var captionText = trigger.getAttribute('data-lightbox-caption');
+        var innerImg = trigger.querySelector('img');
+        var alt = innerImg ? innerImg.getAttribute('alt') : '';
+        if (src) open(src, alt, captionText);
+      });
+    });
+
+    closeBtn.addEventListener('click', close);
+    lightbox.addEventListener('click', function (e) {
+      if (e.target === lightbox) close();
+    });
+  }
+
+  /* -----------------------------------------------------------
+     ACTIVE NAV STATE — highlights the nav link for the section
+     currently in view.
+  ----------------------------------------------------------- */
+  function initActiveNav() {
+    var navLinks = qsa('.masthead__nav a[href^="#"]');
+    if (!navLinks.length || !('IntersectionObserver' in window)) return;
+
+    var sections = navLinks
+      .map(function (link) { return document.querySelector(link.getAttribute('href')); })
+      .filter(Boolean);
+    if (!sections.length) return;
+
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var id = '#' + entry.target.id;
+        navLinks.forEach(function (link) {
+          link.classList.toggle('is-active', link.getAttribute('href') === id);
+        });
+      });
+    }, { threshold: 0, rootMargin: '-45% 0px -50% 0px' });
+
+    sections.forEach(function (section) { observer.observe(section); });
+  }
+
+  /* -----------------------------------------------------------
      6. FOOTER YEAR
   ----------------------------------------------------------- */
   function initFooterYear() {
@@ -158,6 +270,9 @@
     initMobileMenu();
     initScrollReveal();
     initSmoothScroll();
+    initImageFallback();
+    initLightbox();
+    initActiveNav();
     initFooterYear();
   }
 
